@@ -40,6 +40,7 @@ export interface MqttState {
   subscribe: (topic: string) => void;
   unsubscribe: (topic: string) => void;
   unsubscribeAll: () => void;
+  removeSubscription: (topic: string) => void;
   clearMessages: () => void;
   saveHistoryTab: () => string | undefined;
   importHistoryTab: (history: ImportedHistory) => string;
@@ -186,6 +187,16 @@ export const useMqttStore = create<MqttState>()(
             }),
             false,
             "MqttStore/unsubscribeAll",
+          ),
+        removeSubscription: (topic) =>
+          set(
+            (state) => {
+              const subscriptions = new Map(state.subscriptions);
+              subscriptions.delete(topic);
+              return { subscriptions };
+            },
+            false,
+            "MqttStore/removeSubscription",
           ),
         clearMessages: () =>
           set({ receivedMessages: [], sentMessages: [] }, false, "MqttStore/clearMessages"),
