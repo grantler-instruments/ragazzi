@@ -281,16 +281,20 @@ const startBroker = async (): Promise<BrokerSettings> => {
         resolve(getBrokerSettings());
       };
 
+      wsServer.on("error", (err: NodeJS.ErrnoException) => {
+        brokerStarting = false;
+        reject(describeBrokerPortError(err, wsPort, "WebSocket"));
+      });
       wsServer.listen(wsPort, () => {
         console.log("websocket server listening on port ", wsPort);
         wsReady = true;
         maybeReady();
       });
-      wsServer.on("error", (err: NodeJS.ErrnoException) => {
-        brokerStarting = false;
-        reject(describeBrokerPortError(err, wsPort, "WebSocket"));
-      });
 
+      tcpServer.on("error", (err: NodeJS.ErrnoException) => {
+        brokerStarting = false;
+        reject(describeBrokerPortError(err, tcpPort, "TCP"));
+      });
       tcpServer.listen(tcpPort, () => {
         console.log(`server started and listening on port ${tcpPort}`);
         mqttClient = mqtt.connect(`mqtt://localhost:${tcpPort}`);
@@ -302,10 +306,6 @@ const startBroker = async (): Promise<BrokerSettings> => {
         mqttClient.on("error", (err) => {
           console.error("mqtt client error", err);
         });
-      });
-      tcpServer.on("error", (err: NodeJS.ErrnoException) => {
-        brokerStarting = false;
-        reject(describeBrokerPortError(err, tcpPort, "TCP"));
       });
     });
   } catch (err) {
