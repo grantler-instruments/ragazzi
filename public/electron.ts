@@ -51,6 +51,7 @@ let devMqttStatus: MqttClientStatus = {
 };
 let brokerRunning = false;
 let brokerStarting = false;
+let brokerStartError: string | undefined;
 let tcpServer: net.Server | null = null;
 let wsServer: http.Server | null = null;
 let aedes: import("aedes").Aedes | null = null;
@@ -99,7 +100,26 @@ const getBrokerSettings = (): BrokerSettings => ({
   running: brokerRunning,
   wsPort,
   tcpPort,
+  error: brokerStartError,
 });
+
+const describeBrokerPortError = (
+  err: NodeJS.ErrnoException,
+  port: number,
+  label: string,
+): Error => {
+  if (err.code === "EADDRINUSE") {
+    return new Error(
+      `Port ${port} (${label}) is already in use. Choose a different port and try again.`,
+    );
+  }
+  if (err.code === "EACCES") {
+    return new Error(
+      `Port ${port} (${label}) requires elevated permissions. Choose a port above 1024.`,
+    );
+  }
+  return err;
+};
 
 const publishBrokerSettings = () => {
   const settings = getBrokerSettings();
@@ -256,6 +276,7 @@ const startBroker = async (): Promise<BrokerSettings> => {
         if (!tcpReady || !wsReady) return;
         brokerStarting = false;
         brokerRunning = true;
+        brokerStartError = undefined;
         publishBrokerSettings();
         resolve(getBrokerSettings());
       };
@@ -265,9 +286,9 @@ const startBroker = async (): Promise<BrokerSettings> => {
         wsReady = true;
         maybeReady();
       });
-      wsServer.on("error", (err) => {
+      wsServer.on("error", (err: NodeJS.ErrnoException) => {
         brokerStarting = false;
-        reject(err);
+        reject(describeBrokerPortError(err, wsPort, "WebSocket"));
       });
 
       tcpServer.listen(tcpPort, () => {
@@ -282,13 +303,14 @@ const startBroker = async (): Promise<BrokerSettings> => {
           console.error("mqtt client error", err);
         });
       });
-      tcpServer.on("error", (err) => {
+      tcpServer.on("error", (err: NodeJS.ErrnoException) => {
         brokerStarting = false;
-        reject(err);
+        reject(describeBrokerPortError(err, tcpPort, "TCP"));
       });
     });
   } catch (err) {
     brokerStarting = false;
+    brokerStartError = err instanceof Error ? err.message : "Could not start broker.";
     throw err;
   }
 };

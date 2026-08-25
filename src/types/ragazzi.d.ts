@@ -2,6 +2,7 @@ export interface BrokerSettings {
   running: boolean;
   wsPort: number;
   tcpPort: number;
+  error?: string;
 }
 
 export interface ProjectView {

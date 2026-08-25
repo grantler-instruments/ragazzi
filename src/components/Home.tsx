@@ -1,6 +1,7 @@
 import CheckIcon from "@mui/icons-material/Check";
 import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -47,12 +48,13 @@ export default function Home() {
 
     api.getSettings().then((settings) => {
       setBrokerSettings(settings);
+      setPortError(settings.error ?? "");
     });
 
     return api.onSettings((settings) => {
       setBrokerSettings(settings);
       setBrokerBusy(false);
-      setPortError("");
+      setPortError(settings.error ?? "");
     });
   }, [setBrokerSettings]);
 
@@ -162,9 +164,9 @@ export default function Home() {
             )}
 
             {portError && (
-              <Typography variant="caption" color="error" sx={{ display: "block", mb: 1 }}>
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPortError("")}>
                 {portError}
-              </Typography>
+              </Alert>
             )}
 
             <Typography variant="caption">
