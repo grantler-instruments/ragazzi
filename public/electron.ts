@@ -137,6 +137,24 @@ const publishBrokerSettings = () => {
   }
 };
 
+// Node can throw EADDRINUSE synchronously via listen(), outside any promise/callback
+// we control, which otherwise reaches Electron's default "uncaught exception" dialog
+// instead of the in-app error message.
+process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
+  console.error("uncaught exception in main process", err);
+  brokerStarting = false;
+  if (err.code === "EADDRINUSE" || err.code === "EACCES") {
+    const port = /:(\d+)$/.exec(err.message ?? "")?.[1] ?? "unknown";
+    brokerStartError =
+      err.code === "EADDRINUSE"
+        ? `Port ${port} is already in use. Choose a different port and try again.`
+        : `Port ${port} requires elevated permissions. Choose a port above 1024.`;
+  } else {
+    brokerStartError = err instanceof Error ? err.message : "Something went wrong.";
+  }
+  publishBrokerSettings();
+});
+
 const publishDevMqttStatus = (status: MqttClientStatus) => {
   devMqttStatus = status;
   if (mainWindow && !mainWindow.isDestroyed()) {
